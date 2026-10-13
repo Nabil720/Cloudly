@@ -2,9 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: dev
 spec:
-  replicas: 2
+  # No replicas field: the HPA (hpa-backend.yaml) owns the replica count.
   selector:
     matchLabels:
       app: backend
@@ -24,7 +23,7 @@ spec:
       containers:
         - name: backend
           image: nanil0034/cloudly-backend:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 4000

@@ -1,0 +1,97 @@
+# Adds scrape targets and alert rules to the existing kube-prometheus-stack
+# (Helm release "my-kube-prometheus-stack"). It only picks up objects with
+# the label release: my-kube-prometheus-stack.
+#
+# Backend CPU/memory come from the kubelet/cAdvisor metrics and replica counts
+# from kube-state-metrics, both already scraped by the stack.
+
+# ingress-nginx serves metrics on :10254 but the install doesn't expose it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx-controller-metrics
+  namespace: ingress-nginx
+  labels:
+    app: ingress-nginx-metrics
+spec:
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/component: controller
+  ports:
+    - name: metrics
+      port: 10254
+      targetPort: 10254
+---
+# Request rate, error rate and latency per Ingress/Service.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ingress-nginx
+  namespace: monitoring
+  labels:
+    release: my-kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: [ingress-nginx]
+  selector:
+    matchLabels:
+      app: ingress-nginx-metrics
+  endpoints:
+    - port: metrics
+      interval: 15s
+      # Keep the app's namespace label (dev/preprod/release) instead of ingress-nginx.
+      honorLabels: true
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cloudly-alerts
+  namespace: monitoring
+  labels:
+    release: my-kube-prometheus-stack
+spec:
+  groups:
+    - name: cloudly-backend
+      rules:
+        - alert: BackendHighErrorRate
+          expr: |
+            sum by (namespace) (rate(nginx_ingress_controller_requests{service="backend-service", status=~"5.."}[5m]))
+              / sum by (namespace) (rate(nginx_ingress_controller_requests{service="backend-service"}[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Backend 5xx rate above 5% in {{ $labels.namespace }}"
+        - alert: BackendHighLatency
+          expr: |
+            histogram_quantile(0.95, sum by (namespace, le) (
+              rate(nginx_ingress_controller_request_duration_seconds_bucket{service="backend-service"}[5m]))) > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Backend p95 latency above 1s in {{ $labels.namespace }}"
+        - alert: BackendHighCPU
+          expr: |
+            sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container="backend"}[5m]))
+              / sum by (namespace, pod) (kube_pod_container_resource_limits{container="backend", resource="cpu"}) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.pod }} is using >90% of its CPU limit"
+        - alert: BackendAtMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler="backend"}
+              >= kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler="backend"}
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Backend HPA in {{ $labels.namespace }} has been at max replicas for 15m"
+        - alert: BackendPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{container="backend"}[15m]) > 3
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.pod }} restarted more than 3 times in 15m"

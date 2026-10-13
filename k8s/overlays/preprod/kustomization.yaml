@@ -1,0 +1,47 @@
+# Branch: pre-release/v* -> namespace preprod
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: preprod
+resources:
+  - namespace-preprod.yaml
+  - ../../base
+# Updated by CI after every successful deploy.
+images:
+  - name: nanil0034/cloudly-backend
+    newTag: latest
+  - name: nanil0034/cloudly-frontend
+    newTag: latest
+patches:
+  # PersistentVolumes are cluster-wide, so each environment needs its own.
+  - target:
+      kind: PersistentVolume
+      name: postgres-pv
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: postgres-pv-preprod
+      - op: replace
+        path: /spec/hostPath/path
+        value: /var/lib/node-react-platform/preprod/postgres
+  - target:
+      kind: PersistentVolumeClaim
+      name: postgres-pvc
+    patch: |-
+      - op: replace
+        path: /spec/volumeName
+        value: postgres-pv-preprod
+  # Hostnames and NodePorts must be unique across namespaces.
+  - target:
+      kind: Ingress
+      name: app-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: preprod.node-react.local
+  - target:
+      kind: Service
+      name: frontend-service
+    patch: |-
+      - op: replace
+        path: /spec/ports/0/nodePort
+        value: 30081

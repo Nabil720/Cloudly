@@ -1,0 +1,13 @@
+# Branch: master -> namespace dev
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev
+resources:
+  - namespace-dev.yaml
+  - ../../base
+# Updated by CI after every successful deploy.
+images:
+  - name: nanil0034/cloudly-backend
+    newTag: main-logging
+  - name: nanil0034/cloudly-frontend
+    newTag: latest

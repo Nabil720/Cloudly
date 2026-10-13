@@ -1,0 +1,9 @@
+# kubectl apply -k observability/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - loki.yaml
+  - fluentbit-daemonset.yaml
+  - prometheus.yaml
+  - grafana.yaml

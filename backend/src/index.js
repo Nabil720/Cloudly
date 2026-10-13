@@ -9,6 +9,22 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// One JSON line per request so logs can be filtered in Loki (health probes skipped).
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/health")) return next();
+  const start = Date.now();
+  res.on("finish", () => {
+    console.log(JSON.stringify({
+      level: res.statusCode >= 500 ? "error" : "info",
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      duration_ms: Date.now() - start,
+    }));
+  });
+  next();
+});
+
 const PORT = process.env.PORT || 4000;
 
 app.get("/api/health", (req, res) => {

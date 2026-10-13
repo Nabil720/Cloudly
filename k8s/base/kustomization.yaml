@@ -1,8 +1,8 @@
-# Apply everything: kubectl apply -k k8s/
+# Shared manifests for every environment. Namespace, image tags and
+# per-environment differences live in ../overlays/<env>.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - namespace/namespace-dev.yaml
   - configuration/app-configmap.yaml
   - configuration/app-secrets.yaml
   - storage/postgres-pv.yaml
@@ -13,6 +13,7 @@ resources:
   - redis/redis-service.yaml
   - backend/backend-deployment.yaml
   - backend/backend-service.yaml
+  - backend/hpa-backend.yaml
   - frontend/frontend-deployment.yaml
   - frontend/frontend-service.yaml
   - ingress/ingress-dev.yaml
