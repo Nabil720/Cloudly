@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+.env
+.env.*
+!.env.example
+Dockerfile
+.dockerignore
+*.md
+*.log
+.DS_Store
