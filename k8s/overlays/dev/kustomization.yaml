@@ -8,6 +8,6 @@ resources:
 # Updated by CI after every successful deploy.
 images:
   - name: nanil0034/cloudly-backend
-    newTag: main-36456e7
+    newTag: main-4831a1e
   - name: nanil0034/cloudly-frontend
-    newTag: main-36456e7
+    newTag: main-4831a1e
